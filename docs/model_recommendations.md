@@ -1,6 +1,8 @@
-# Hugging Face 模型推荐
+# Hugging Face 中文优先模型推荐
 
-本文列出适合接入当前 `TransformersModelDetector` 的提示词注入/越狱检测模型。所有候选都需要先跑本项目的本地评测集：
+本文列出适合接入当前 `TransformersModelDetector` 的提示词注入/越狱检测模型。当前目标是 **中文优先**，因此推荐顺序按中文/多语言能力、攻击召回率、误拦控制和部署成本综合排序。
+
+所有候选都需要先跑本项目的本地评测集：
 
 ```powershell
 $env:PYTHONPATH='src'
@@ -8,6 +10,26 @@ python scripts/evaluate_cases.py --use-transformers --model <model-id>
 ```
 
 如果使用内网镜像源或本地缓存，请参考 `docs/model_cache_and_migration.md`。
+
+## 0. 中文优先结论
+
+如果你现在主要做中文用户输入安全护栏，建议先按这个顺序评测：
+
+1. `meta-llama/Llama-Prompt-Guard-2-86M`
+2. `patronus-studio/wolf-defender-prompt-injection`
+3. `devndeploy/bert-prompt-injection-detector`
+4. `rogue-security/prompt-injection-jailbreak-sentinel-v2`
+5. `meta-llama/Llama-Prompt-Guard-2-22M`
+6. `protectai/deberta-v3-base-prompt-injection-v2`
+7. `deepset/deberta-v3-base-injection`
+
+其中：
+
+1. **中文/多语言首选**：`meta-llama/Llama-Prompt-Guard-2-86M`
+2. **更长上下文和中文训练痕迹**：`patronus-studio/wolf-defender-prompt-injection`
+3. **明确包含中文训练语言的轻量 baseline**：`devndeploy/bert-prompt-injection-detector`
+4. **中文底座候选**：`rogue-security/prompt-injection-jailbreak-sentinel-v2`，基于 Qwen3-0.6B，但体积和依赖更重
+5. **英文 baseline**：ProtectAI / Deepset，仅作为对照，不建议作为中文主模型
 
 ## 1. 首选：Llama Prompt Guard 2 86M
 
@@ -23,6 +45,7 @@ meta-llama/Llama-Prompt-Guard-2-86M
 2. 86M 版本使用 multilingual base model，更适合中文/多语言输入侧护栏。
 3. 官方说明支持 512-token 上下文，长文本需要切片扫描，这与当前项目的窗口化流程匹配。
 4. 相比 ProtectAI / Deepset 这类早期 prompt-injection 模型，更贴近 agentic 场景。
+5. 官方模型卡说明 86M 版本多语言 AUC 明显优于 22M，且 22M 因缺少多语言预训练，在多语言数据上差距更大。
 
 适用场景：
 
@@ -55,6 +78,7 @@ meta-llama/Llama-Prompt-Guard-2-22M
 
 1. 22M 版本更偏低延迟，中文效果要用本地数据集实测。
 2. 如果中文召回不足，优先考虑 86M 版本。
+3. 官方模型卡明确提示 22M 的多语言表现弱于 86M，因此它不应作为中文主力模型的第一选择。
 
 示例：
 
@@ -63,7 +87,92 @@ $env:PYTHONPATH='src'
 python scripts/evaluate_cases.py --use-transformers --model meta-llama/Llama-Prompt-Guard-2-22M
 ```
 
-## 3. 英文 prompt injection 基线：ProtectAI DeBERTa v2
+## 3. 中文/多语言强候选：Wolf Defender
+
+模型：
+
+```text
+patronus-studio/wolf-defender-prompt-injection
+```
+
+推荐理由：
+
+1. 模型卡说明它是 Multilingual ModernBERT-based 分类器。
+2. 上下文长度为 2048 tokens，比 Llama Prompt Guard 2 的 512-token 上限更适合长输入。
+3. 训练增强包含 Unicode、Base64、HTML、标签包装、间距扰动等混淆方式。
+4. 训练数据中包含 Mandarin 翻译/样本，适合纳入中文评测。
+5. Apache-2.0 许可证，商业使用更省心。
+
+限制：
+
+1. 模型卡也说明其主动评测主要集中在英文和德文，Mandarin 有训练但未充分主动测试。
+2. 约 0.3B 参数，延迟和资源开销高于 22M/86M 小分类器。
+3. 必须用我们的中文本地数据集实测误拦率。
+
+示例：
+
+```powershell
+$env:PYTHONPATH='src'
+python scripts/evaluate_cases.py --use-transformers --model patronus-studio/wolf-defender-prompt-injection
+```
+
+## 4. 明确包含中文训练语言的 baseline
+
+模型：
+
+```text
+devndeploy/bert-prompt-injection-detector
+```
+
+推荐理由：
+
+1. 基于 `bert-base-multilingual-cased` 微调。
+2. 模型卡写明训练语言包含 Chinese、Japanese、Korean 等 11+ 语言。
+3. MIT 许可证。
+4. 适合做中文/多语言 baseline，尤其适合和 Llama Prompt Guard 2 86M 对比。
+
+限制：
+
+1. 下载量和社区验证相对较少。
+2. 模型卡也提示不同语言表现会变化，必须本地评测。
+3. 对新型攻击和业务上下文的泛化能力未知。
+
+示例：
+
+```powershell
+$env:PYTHONPATH='src'
+python scripts/evaluate_cases.py --use-transformers --model devndeploy/bert-prompt-injection-detector
+```
+
+## 5. 中文底座候选：Sentinel v2 / Qwen3
+
+模型：
+
+```text
+rogue-security/prompt-injection-jailbreak-sentinel-v2
+```
+
+推荐理由：
+
+1. 基于 Qwen3-0.6B，中文语义能力天然比英文 DeBERTa 更值得期待。
+2. 面向 prompt injection 和 jailbreak 双任务。
+3. 模型卡说明支持更长上下文，并有 GGUF 量化版本。
+
+限制：
+
+1. 0.6B 参数，部署成本明显高于分类小模型。
+2. 许可证为 Elastic license，需要确认是否满足你的内网/商用合规要求。
+3. 可能需要 `transformers >= 4.51.0`，内网依赖版本要提前验证。
+4. 由于是 Qwen 架构，首次接入要确认 `AutoModelForSequenceClassification` 标签和输出是否完全兼容当前 detector。
+
+示例：
+
+```powershell
+$env:PYTHONPATH='src'
+python scripts/evaluate_cases.py --use-transformers --model rogue-security/prompt-injection-jailbreak-sentinel-v2
+```
+
+## 6. 英文 prompt injection 基线：ProtectAI DeBERTa v2
 
 模型：
 
@@ -96,7 +205,7 @@ $env:PYTHONPATH='src'
 python scripts/evaluate_cases.py --use-transformers --model protectai/deberta-v3-base-prompt-injection-v2
 ```
 
-## 4. 更快的 ProtectAI 小模型
+## 7. 更快的 ProtectAI 小模型
 
 模型：
 
@@ -114,7 +223,7 @@ protectai/deberta-v3-small-prompt-injection-v2
 1. 英文为主。
 2. 不适合作为中文主模型。
 
-## 5. Deepset prompt injection 基线
+## 8. Deepset prompt injection 基线
 
 模型：
 
@@ -140,7 +249,7 @@ $env:PYTHONPATH='src'
 python scripts/evaluate_cases.py --use-transformers --model deepset/deberta-v3-base-injection
 ```
 
-## 6. ONNX 候选
+## 9. ONNX 候选
 
 如果未来要进一步压低延迟，可以关注 ONNX 版本：
 
@@ -159,15 +268,18 @@ OnnxModelDetector
   -> LayerResult
 ```
 
-## 7. 推荐评测顺序
+## 10. 推荐评测顺序
 
 建议按下面顺序在本地数据集上跑：
 
 1. `meta-llama/Llama-Prompt-Guard-2-86M`
-2. `meta-llama/Llama-Prompt-Guard-2-22M`
-3. `protectai/deberta-v3-base-prompt-injection-v2`
-4. `deepset/deberta-v3-base-injection`
-5. `protectai/deberta-v3-small-prompt-injection-v2`
+2. `patronus-studio/wolf-defender-prompt-injection`
+3. `devndeploy/bert-prompt-injection-detector`
+4. `rogue-security/prompt-injection-jailbreak-sentinel-v2`
+5. `meta-llama/Llama-Prompt-Guard-2-22M`
+6. `protectai/deberta-v3-base-prompt-injection-v2`
+7. `deepset/deberta-v3-base-injection`
+8. `protectai/deberta-v3-small-prompt-injection-v2`
 
 选择标准：
 
