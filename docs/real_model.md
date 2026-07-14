@@ -83,3 +83,7 @@ print(result)
 ## 5. 模型推荐
 
 候选模型与推荐评测顺序见 [Hugging Face 模型推荐](model_recommendations.md)。当前中文输入侧场景建议优先评估 `meta-llama/Llama-Prompt-Guard-2-86M` 和 `meta-llama/Llama-Prompt-Guard-2-22M`。
+
+## 6. 阈值分析
+
+中文场景下的已测模型阈值建议见 [中文模型阈值选定与分析](threshold_analysis.md)。当前推荐先使用 `patronus-studio/wolf-defender-prompt-injection`，并设置 `block_threshold=0.93`、`gray_threshold=0.90`。
