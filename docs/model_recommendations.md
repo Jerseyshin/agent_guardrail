@@ -15,19 +15,20 @@ python scripts/evaluate_cases.py --use-transformers --model <model-id>
 
 如果你现在主要做中文用户输入安全护栏，建议先按这个顺序评测：
 
-1. `meta-llama/Llama-Prompt-Guard-2-86M`
-2. `patronus-studio/wolf-defender-prompt-injection`
-3. `devndeploy/bert-prompt-injection-detector`
-4. `rogue-security/prompt-injection-jailbreak-sentinel-v2`
-5. `meta-llama/Llama-Prompt-Guard-2-22M`
+1. `patronus-studio/wolf-defender-prompt-injection`
+2. `devndeploy/bert-prompt-injection-detector`
+3. `LLM-Research/Llama-Prompt-Guard-2-86M`（ModelScope）
+4. `LLM-Research/Llama-Prompt-Guard-2-22M`（ModelScope）
+5. `rogue-security/prompt-injection-jailbreak-sentinel-v2`
 6. `protectai/deberta-v3-base-prompt-injection-v2`
 7. `deepset/deberta-v3-base-injection`
 
 其中：
 
-1. **中文/多语言首选**：`meta-llama/Llama-Prompt-Guard-2-86M`
-2. **更长上下文和中文训练痕迹**：`patronus-studio/wolf-defender-prompt-injection`
-3. **明确包含中文训练语言的轻量 baseline**：`devndeploy/bert-prompt-injection-detector`
+1. **当前已测中文召回最强**：`patronus-studio/wolf-defender-prompt-injection`
+2. **明确包含中文训练语言的轻量 baseline**：`devndeploy/bert-prompt-injection-detector`
+3. **ModelScope 可下载但当前中文集召回不足**：`LLM-Research/Llama-Prompt-Guard-2-86M`
+4. **低延迟但当前中文集召回更弱**：`LLM-Research/Llama-Prompt-Guard-2-22M`
 4. **中文底座候选**：`rogue-security/prompt-injection-jailbreak-sentinel-v2`，基于 Qwen3-0.6B，但体积和依赖更重
 5. **英文 baseline**：ProtectAI / Deepset，仅作为对照，不建议作为中文主模型
 
@@ -60,6 +61,33 @@ $env:PYTHONPATH='src'
 python scripts/evaluate_cases.py --use-transformers --model meta-llama/Llama-Prompt-Guard-2-86M
 ```
 
+ModelScope 路径：
+
+```python
+from modelscope import snapshot_download
+
+local_dir = snapshot_download(
+    "LLM-Research/Llama-Prompt-Guard-2-86M",
+    local_dir="models/Llama-Prompt-Guard-2-86M",
+)
+```
+
+```powershell
+$env:PYTHONPATH='src'
+python scripts/evaluate_cases.py --use-transformers --model models\Llama-Prompt-Guard-2-86M
+```
+
+当前本地中文集结果（ModelScope 下载，本地加载，`block_threshold=0.85`）：
+
+| 指标 | 值 |
+| :--- | ---: |
+| Accuracy | 58.14% |
+| Attack block recall | 48.48% |
+| Safe block false positive rate | 10.00% |
+| 中文本地化攻击 accuracy | 28.57% |
+
+结论：虽然 86M 理论上多语言能力更强，但在当前中文测试集上召回明显不足，暂不建议作为中文主模型。
+
 ## 2. 低延迟首选：Llama Prompt Guard 2 22M
 
 模型：
@@ -86,6 +114,33 @@ meta-llama/Llama-Prompt-Guard-2-22M
 $env:PYTHONPATH='src'
 python scripts/evaluate_cases.py --use-transformers --model meta-llama/Llama-Prompt-Guard-2-22M
 ```
+
+ModelScope 路径：
+
+```python
+from modelscope import snapshot_download
+
+local_dir = snapshot_download(
+    "LLM-Research/Llama-Prompt-Guard-2-22M",
+    local_dir="models/Llama-Prompt-Guard-2-22M",
+)
+```
+
+```powershell
+$env:PYTHONPATH='src'
+python scripts/evaluate_cases.py --use-transformers --model models\Llama-Prompt-Guard-2-22M
+```
+
+当前本地中文集结果（ModelScope 下载，本地加载，`block_threshold=0.85`）：
+
+| 指标 | 值 |
+| :--- | ---: |
+| Accuracy | 39.53% |
+| Attack block recall | 21.21% |
+| Safe block false positive rate | 0.00% |
+| 中文本地化攻击 accuracy | 14.29% |
+
+结论：22M 误拦低，但中文攻击召回太低，不适合作为中文主模型。
 
 ## 3. 中文/多语言强候选：Wolf Defender
 
@@ -272,11 +327,11 @@ OnnxModelDetector
 
 建议按下面顺序在本地数据集上跑：
 
-1. `meta-llama/Llama-Prompt-Guard-2-86M`
-2. `patronus-studio/wolf-defender-prompt-injection`
-3. `devndeploy/bert-prompt-injection-detector`
-4. `rogue-security/prompt-injection-jailbreak-sentinel-v2`
-5. `meta-llama/Llama-Prompt-Guard-2-22M`
+1. `patronus-studio/wolf-defender-prompt-injection`
+2. `devndeploy/bert-prompt-injection-detector`
+3. `LLM-Research/Llama-Prompt-Guard-2-86M`（ModelScope）
+4. `LLM-Research/Llama-Prompt-Guard-2-22M`（ModelScope）
+5. `rogue-security/prompt-injection-jailbreak-sentinel-v2`
 6. `protectai/deberta-v3-base-prompt-injection-v2`
 7. `deepset/deberta-v3-base-injection`
 8. `protectai/deberta-v3-small-prompt-injection-v2`

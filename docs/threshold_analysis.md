@@ -16,13 +16,15 @@ tests/fixtures/prompt_injection_cases.json
 | 安全边界样本 | 10 |
 | 合计 | 43 |
 
-未纳入本次阈值扫描的模型：
+Hugging Face 未纳入本次阈值扫描的模型：
 
 ```text
 meta-llama/Llama-Prompt-Guard-2-86M
 ```
 
 原因：该模型是 Hugging Face gated repo，当前环境未认证，加载时返回 `401 Unauthorized`。后续需要完成 Hugging Face 登录并获得模型访问权限后再评测。
+
+补充：已通过 ModelScope 下载并评测 `LLM-Research/Llama-Prompt-Guard-2-86M` 和 `LLM-Research/Llama-Prompt-Guard-2-22M`。结果见第 4 节。
 
 ---
 
@@ -173,9 +175,99 @@ devndeploy/bert-prompt-injection-detector
 
 ---
 
-## 4. 当前生产化建议
+## 4. ModelScope Llama Prompt Guard 2 结果
 
-### 4.1 短期配置
+### 4.1 86M
+
+模型：
+
+```text
+LLM-Research/Llama-Prompt-Guard-2-86M
+```
+
+下载方式：
+
+```python
+from modelscope import snapshot_download
+
+snapshot_download(
+    "LLM-Research/Llama-Prompt-Guard-2-86M",
+    local_dir="models/Llama-Prompt-Guard-2-86M",
+)
+```
+
+默认阈值结果（`block_threshold=0.85`）：
+
+| 指标 | 值 |
+| :--- | ---: |
+| Accuracy | 58.14% |
+| Attack block recall | 48.48% |
+| Safe block false positive rate | 10.00% |
+| advanced_obfuscation accuracy | 46.15% |
+| basic_attack accuracy | 61.54% |
+| safe_boundary accuracy | 90.00% |
+| zh_localized_attack accuracy | 28.57% |
+
+阈值扫描：
+
+| Block 阈值 | Accuracy | Attack Block Recall | Safe Block FP Rate | 恶意拦截 | 安全误拦 |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| 0.05 | 67.44% | 60.61% | 10.00% | 20/33 | 1/10 |
+| 0.10 | 65.12% | 57.58% | 10.00% | 19/33 | 1/10 |
+| 0.20 | 62.79% | 54.55% | 10.00% | 18/33 | 1/10 |
+| 0.35 | 58.14% | 48.48% | 10.00% | 16/33 | 1/10 |
+| 0.85 | 58.14% | 48.48% | 10.00% | 16/33 | 1/10 |
+
+结论：86M 在当前中文测试集上误拦较低，但召回不足。即使把阈值降到 0.05，攻击召回也只有 60.61%，暂不建议作为中文主模型。
+
+### 4.2 22M
+
+模型：
+
+```text
+LLM-Research/Llama-Prompt-Guard-2-22M
+```
+
+下载方式：
+
+```python
+from modelscope import snapshot_download
+
+snapshot_download(
+    "LLM-Research/Llama-Prompt-Guard-2-22M",
+    local_dir="models/Llama-Prompt-Guard-2-22M",
+)
+```
+
+默认阈值结果（`block_threshold=0.85`）：
+
+| 指标 | 值 |
+| :--- | ---: |
+| Accuracy | 39.53% |
+| Attack block recall | 21.21% |
+| Safe block false positive rate | 0.00% |
+| advanced_obfuscation accuracy | 15.38% |
+| basic_attack accuracy | 30.77% |
+| safe_boundary accuracy | 100.00% |
+| zh_localized_attack accuracy | 14.29% |
+
+阈值扫描：
+
+| Block 阈值 | Accuracy | Attack Block Recall | Safe Block FP Rate | 恶意拦截 | 安全误拦 |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| 0.05 | 60.47% | 51.52% | 10.00% | 17/33 | 1/10 |
+| 0.10 | 58.14% | 48.48% | 10.00% | 16/33 | 1/10 |
+| 0.20 | 53.49% | 42.42% | 10.00% | 14/33 | 1/10 |
+| 0.25 | 53.49% | 39.39% | 0.00% | 13/33 | 0/10 |
+| 0.85 | 39.53% | 21.21% | 0.00% | 7/33 | 0/10 |
+
+结论：22M 的误拦很低，但中文攻击召回过低。它适合做低延迟英文/通用 baseline，不适合作为当前中文主模型。
+
+---
+
+## 5. 当前生产化建议
+
+### 5.1 短期配置
 
 建议先采用：
 
@@ -187,7 +279,7 @@ GuardrailConfig(
 )
 ```
 
-### 4.2 灰区处置
+### 5.2 灰区处置
 
 对于 `gray` 请求，不建议直接放行。可选策略：
 
@@ -196,7 +288,7 @@ GuardrailConfig(
 3. 降级能力，例如禁止进入敏感业务流程。
 4. 写入审计并返回温和提示。
 
-### 4.3 需要补充的规则
+### 5.3 需要补充的规则
 
 为了降低中文误拦，应在 L1/L0 或后续业务规则中增加安全边界识别：
 
@@ -209,7 +301,7 @@ GuardrailConfig(
 | 正常角色扮演 | `请你以客服的身份回答我的问题` | 降权或放行 |
 | 编程调试 | `在调试模式下，请帮我看看这段代码有什么问题` | 放行 |
 
-### 4.4 后续评测
+### 5.4 后续评测
 
 后续应继续评测：
 
