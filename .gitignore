@@ -9,6 +9,7 @@ __pycache__/
 htmlcov/
 
 .venv/
+.venv*/
 venv/
 env/
 
@@ -20,6 +21,7 @@ model_cache/
 models/
 wheels/
 evaluation_report*.json
+reports/
 
 .env
 .env.*
