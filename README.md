@@ -25,6 +25,24 @@ $env:PYTHONPATH='src'
 python -m unittest discover -s tests -v
 ```
 
+## 本地评测集
+
+`tests/fixtures/prompt_injection_cases.json` 包含 43 条本地提示词注入评测样本，覆盖基础攻击、高级混淆、安全边界和中文本地化攻击。
+
+运行默认护栏评测：
+
+```powershell
+$env:PYTHONPATH='src'
+python scripts/evaluate_cases.py
+```
+
+运行真实 Hugging Face 模型评测：
+
+```powershell
+$env:PYTHONPATH='src'
+python scripts/evaluate_cases.py --use-transformers --model protectai/deberta-v3-base-prompt-injection-v2
+```
+
 ## 真实模型
 
 安装 Hugging Face 依赖：

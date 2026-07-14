@@ -79,3 +79,7 @@ print(result)
 ## 4. 本地缓存与内网移植
 
 真实模型生产化时，不建议服务启动后临时从公网下载模型。请参考 [本地模型缓存与内网移植指南](model_cache_and_migration.md)，使用 `model_cache_dir`、`model_local_files_only`、`model_revision` 等配置完成模型预热和离线加载。
+
+## 5. 模型推荐
+
+候选模型与推荐评测顺序见 [Hugging Face 模型推荐](model_recommendations.md)。当前中文输入侧场景建议优先评估 `meta-llama/Llama-Prompt-Guard-2-86M` 和 `meta-llama/Llama-Prompt-Guard-2-22M`。
